@@ -24,8 +24,8 @@ type GripperControls = {
 
 type Gripper4Controls = {
   xMove: number;
-  yMove: number;
-  catchRotateZDeg: number;
+  zMove: number;
+  catchRotateYDeg: number;
 };
 
 type TwinControlSnapshot = {
@@ -87,8 +87,8 @@ export const useHandleStore = defineStore("Handle", () => {
     },
     gripper4: {
       xMove: 0,
-      yMove: 0,
-      catchRotateZDeg: 0,
+      zMove: 0,
+      catchRotateYDeg: 0,
     },
   });
 
@@ -253,14 +253,14 @@ export const useHandleStore = defineStore("Handle", () => {
     }
 
     if (controlTargets.handle4YMovingGroup.value) {
-      controlTargets.handle4YMovingGroup.value.position.y = mmToM(
-        controlValues.gripper4.yMove,
+      controlTargets.handle4YMovingGroup.value.position.z = mmToM(
+        controlValues.gripper4.zMove,
       );
     }
 
     if (controlTargets.handle4CratchUpZ.value) {
-      controlTargets.handle4CratchUpZ.value.rotation.z =
-        THREE.MathUtils.degToRad(controlValues.gripper4.catchRotateZDeg);
+      controlTargets.handle4CratchUpZ.value.rotation.y =
+        THREE.MathUtils.degToRad(controlValues.gripper4.catchRotateYDeg);
     }
   };
 
@@ -374,14 +374,14 @@ export const useHandleStore = defineStore("Handle", () => {
     }
 
     if (controlTargets.handle4YMovingGroup.value) {
-      controlValues.gripper4.yMove = mToMm(
-        controlTargets.handle4YMovingGroup.value.position.y,
+      controlValues.gripper4.zMove = mToMm(
+        controlTargets.handle4YMovingGroup.value.position.z,
       );
     }
 
     if (controlTargets.handle4CratchUpZ.value) {
-      controlValues.gripper4.catchRotateZDeg = THREE.MathUtils.radToDeg(
-        controlTargets.handle4CratchUpZ.value.rotation.z,
+      controlValues.gripper4.catchRotateYDeg = THREE.MathUtils.radToDeg(
+        controlTargets.handle4CratchUpZ.value.rotation.y,
       );
     }
   };

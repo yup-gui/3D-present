@@ -60,18 +60,20 @@ DEFAULT_NODE_MAP: dict[str, dict[str, str]] = {
     },
     "gripper4": {
         "xMove": "ns=2;s=DT.Gripper4.XMoveMm",
-        "yMove": "ns=2;s=DT.Gripper4.YMoveMm",
-        "catchRotateZDeg": "ns=2;s=DT.Gripper4.CatchRotateZDeg",
+        "zMove": "ns=2;s=DT.Gripper4.ZMoveMm",
+        "catchRotateYDeg": "ns=2;s=DT.Gripper4.CatchRotateYDeg",
     },
 }
 
 
 class TwinBridge:
+    # 管理WebSocket客户端和OPC UA连接的桥梁
     def __init__(self) -> None:
         self.clients: set[WebSocket] = set()
         self.running = False
         self.worker_task: asyncio.Task | None = None
         self.lock = asyncio.Lock()
+        # 这里需要写实际PLC的网络地址（局域网）
         self.opc_endpoint = os.getenv("OPCUA_ENDPOINT", "opc.tcp://127.0.0.1:4840")
         self.poll_interval = _env_float("OPCUA_POLL_INTERVAL", 0.1)
         self.retry_interval = _env_float("OPCUA_RETRY_INTERVAL", 1.0)
@@ -220,8 +222,8 @@ class TwinBridge:
                 },
                 "gripper4": {
                     "xMove": 5.0,
-                    "yMove": 5.0,
-                    "catchRotateZDeg": 3.0,
+                    "zMove": 5.0,
+                    "catchRotateYDeg": 3.0,
                 },
             }
             await self.broadcast({"type": "snapshot", "data": snapshot})

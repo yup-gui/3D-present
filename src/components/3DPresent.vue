@@ -287,7 +287,7 @@ const onModelLoad = (gltf: any) => {
           <input
             type="number"
             step="1"
-            v-model.number="handleStore.controlValues.gripper.yMove"
+            v-model.number="handleStore.controlValues.gripper4.xMove"
           />
         </div>
 
@@ -296,7 +296,7 @@ const onModelLoad = (gltf: any) => {
           <input
             type="number"
             step="1"
-            v-model.number="handleStore.controlValues.gripper.zMove"
+            v-model.number="handleStore.controlValues.gripper4.zMove"
           />
         </div>
 
@@ -305,7 +305,7 @@ const onModelLoad = (gltf: any) => {
           <input
             type="number"
             step="1"
-            v-model.number="handleStore.controlValues.gripper.catchRotateXDeg"
+            v-model.number="handleStore.controlValues.gripper4.catchRotateYDeg"
           />
         </div>
       </div>
