@@ -1,0 +1,43 @@
+{
+  "name": "3d-present",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "run-p type-check \"build-only {@}\" --",
+    "preview": "vite preview",
+    "build-only": "vite build",
+    "type-check": "vue-tsc --build"
+  },
+  "dependencies": {
+    "@google/model-viewer": "^4.1.0",
+    "@tresjs/cientos": "^5.4.0",
+    "@tresjs/core": "^5.5.0",
+    "@tresjs/post-processing": "^3.4.0",
+    "@vueuse/core": "^14.2.1",
+    "echarts": "^6.0.0",
+    "naive-ui": "^2.43.2",
+    "pinia": "^3.0.4",
+    "postprocessing": "^6.38.3",
+    "three": "^0.183.1",
+    "vue": "^3.5.29",
+    "vue-echarts": "^8.0.1",
+    "vue-router": "^5.0.3"
+  },
+  "devDependencies": {
+    "@tsconfig/node24": "^24.0.4",
+    "@types/node": "^24.10.13",
+    "@types/three": "^0.183.1",
+    "@vitejs/plugin-vue": "^6.0.4",
+    "@vue/tsconfig": "^0.8.1",
+    "npm-run-all2": "^8.0.4",
+    "typescript": "~5.9.3",
+    "vite": "^7.3.1",
+    "vite-plugin-vue-devtools": "^8.0.6",
+    "vue-tsc": "^3.2.5"
+  },
+  "engines": {
+    "node": "^20.19.0 || >=22.12.0"
+  }
+}
