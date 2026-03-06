@@ -11,7 +11,6 @@
     "type-check": "vue-tsc --build"
   },
   "dependencies": {
-    "@google/model-viewer": "^4.1.0",
     "@tresjs/cientos": "^5.4.0",
     "@tresjs/core": "^5.5.0",
     "@tresjs/post-processing": "^3.4.0",

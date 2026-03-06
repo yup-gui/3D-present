@@ -139,6 +139,24 @@ const onModelLoad = (gltf: any) => {
   // 1. 初始化 Pinia Store
   handleStore.initFromScene(gltf.scene);
   handleStore.bindControlTargets(gltf.scene);
+
+  //测试用
+  const temp = gltf.scene.getObjectByName("leftPin") ?? null;
+  if (temp) {
+    console.log("找到 leftPin 对象:", temp);
+  } else {
+    console.warn("未找到 leftPin 对象，请检查模型结构");
+  }
+  temp.position.x += 100; // 测试性地移动一下，验证绑定是否生效
+
+  const temp2 =
+    gltf.scene.getObjectByName("rightPositioningPinYMovingGroup") ?? null;
+  if (temp2) {
+    console.log("找到 rightPositioningPinYMovingGroup 对象:", temp2);
+  } else {
+    console.warn("未找到 rightPositioningPinYMovingGroup 对象，请检查模型结构");
+  }
+  temp2.position.z += 0.21; // 测试性地移动一下，验证绑定是否生效
 };
 </script>
 

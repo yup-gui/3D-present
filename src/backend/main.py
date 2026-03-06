@@ -29,7 +29,7 @@ def _env_bool(name: str, default: bool) -> bool:
         return default
     return raw.strip().lower() in {"1", "true", "yes", "on"}
 
-
+# PLC中各个变量的NodeId映射，key是前端和广播中使用的名称，value是实际OPC UA中的NodeId，需要根据实际PLC的地址进行调整
 DEFAULT_NODE_MAP: dict[str, dict[str, str]] = {
     "positioningPin": {
         "zRotationDeg": "ns=2;s=DT.PositioningPin.Right.ZRotationDeg",
@@ -187,47 +187,47 @@ class TwinBridge:
                     snapshot[group_name][field_name] = 0.0
 
         return snapshot
-
-    async def _mock_worker(self) -> None:
-        tick = 0.0
-        while self.running:
-            tick += 0.1
-            snapshot = {
-                "positioningPin": {
-                    "zRotationDeg": 10.0,
-                    "xMove": 10.0 + 5.0 * tick,
-                    "zMove": 30.0,
-                    "rightPinZMove": 15.0,
-                },
-                "leftPositioningPin": {
-                    "zRotationDeg": -10.0,
-                    "xMove": -10.0,
-                    "zMove": 30.0,
-                    "leftPinZMove": 15.0,
-                },
-                "gripper": {
-                    "yMove": 5.0,
-                    "zMove": 15.0,
-                    "catchRotateXDeg": 5.0,
-                },
-                "gripper2": {
-                    "yMove": 5.0,
-                    "zMove": 15.0,
-                    "catchRotateXDeg": 5.0,
-                },
-                "gripper3": {
-                    "yMove": 5.0,
-                    "zMove": 15.0,
-                    "catchRotateXDeg": 5.0,
-                },
-                "gripper4": {
-                    "xMove": 5.0,
-                    "zMove": 5.0,
-                    "catchRotateYDeg": 3.0,
-                },
-            }
-            await self.broadcast({"type": "snapshot", "data": snapshot})
-            await asyncio.sleep(self.poll_interval)
+# # 模拟数据生成器，用于开发和测试阶段，当PLC不可用时提供动态变化的数据
+#     async def _mock_worker(self) -> None:
+#         tick = 0.0
+#         while self.running:
+#             tick += 0.1
+#             snapshot = {
+#                 "positioningPin": {
+#                     "zRotationDeg": 10.0,
+#                     "xMove": 10.0 + 5.0 * tick,
+#                     "zMove": 30.0,
+#                     "rightPinZMove": 15.0,
+#                 },
+#                 "leftPositioningPin": {
+#                     "zRotationDeg": -10.0,
+#                     "xMove": -10.0,
+#                     "zMove": 30.0,
+#                     "leftPinZMove": 15.0,
+#                 },
+#                 "gripper": {
+#                     "yMove": 5.0,
+#                     "zMove": 15.0,
+#                     "catchRotateXDeg": 5.0,
+#                 },
+#                 "gripper2": {
+#                     "yMove": 5.0,
+#                     "zMove": 15.0,
+#                     "catchRotateXDeg": 5.0,
+#                 },
+#                 "gripper3": {
+#                     "yMove": 5.0,
+#                     "zMove": 15.0,
+#                     "catchRotateXDeg": 5.0,
+#                 },
+#                 "gripper4": {
+#                     "xMove": 5.0,
+#                     "zMove": 5.0,
+#                     "catchRotateYDeg": 3.0,
+#                 },
+#             }
+#             await self.broadcast({"type": "snapshot", "data": snapshot})
+#             await asyncio.sleep(self.poll_interval)
 
 
 twin_bridge = TwinBridge()
