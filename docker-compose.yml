@@ -1,0 +1,15 @@
+version: '3.8'
+
+services:
+  frontend:
+    image: nginx:stable-alpine
+    container_name: 3d-present-frontend
+    restart: always
+    ports:
+      # 左边的主机端口号可以按照你的需要修改 (例如 Nginx Proxy Manager 代理到了8000端口)
+      # 右边 80 是 Nginx 容器内部的默认访问端口，不要更改
+      - "8000:80" 
+    volumes:
+      # 这里配置静态文件映射。如果是本地运行对应相对路径 ./dist
+      # 但是由于你已经把 dist 内的文件传到了服务器 ~/3D-present，所以如果在服务器运行，要根据实际位置调整
+      - ./dist:/usr/share/nginx/html:ro
