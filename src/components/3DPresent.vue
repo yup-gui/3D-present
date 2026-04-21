@@ -3,7 +3,6 @@ import { computed, onBeforeUnmount, shallowRef, watch } from "vue";
 import { TresCanvas } from "@tresjs/core";
 import { useGraph, useLoader } from "@tresjs/core";
 import { OrbitControls } from "@tresjs/cientos";
-import ModelSync from "./ModelSync.vue";
 import type { GLTF } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { DRACOLoader } from "three/examples/jsm/loaders/DRACOLoader.js";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
@@ -18,6 +17,61 @@ const axisControlKeys = [
   "axis5",
   "axis6",
 ] as const;
+
+const axisLabels = {
+  axis1: "Y旋转(°)",
+  axis2: "Z旋转(°)",
+  axis3: "Z旋转(°)",
+  axis4: "X旋转(°)",
+  axis5: "Z旋转(°)",
+  axis6: "X旋转(°)",
+} as const;
+
+const getAxisControlValue = (axisName: (typeof axisControlKeys)[number]) => {
+  switch (axisName) {
+    case "axis1":
+      return handleStore.controlValues.axis1.yRotatingDeg;
+    case "axis2":
+      return handleStore.controlValues.axis2.zRotatingDeg;
+    case "axis3":
+      return handleStore.controlValues.axis3.zRotatingDeg;
+    case "axis4":
+      return handleStore.controlValues.axis4.xRotatingDeg;
+    case "axis5":
+      return handleStore.controlValues.axis5.zRotatingDeg;
+    case "axis6":
+      return handleStore.controlValues.axis6.xRotatingDeg;
+  }
+};
+
+const setAxisControlValue = (
+  axisName: (typeof axisControlKeys)[number],
+  rawValue: string | number,
+) => {
+  const numericValue =
+    typeof rawValue === "number" ? rawValue : Number(rawValue);
+
+  switch (axisName) {
+    case "axis1":
+      handleStore.controlValues.axis1.yRotatingDeg = numericValue;
+      break;
+    case "axis2":
+      handleStore.controlValues.axis2.zRotatingDeg = numericValue;
+      break;
+    case "axis3":
+      handleStore.controlValues.axis3.zRotatingDeg = numericValue;
+      break;
+    case "axis4":
+      handleStore.controlValues.axis4.xRotatingDeg = numericValue;
+      break;
+    case "axis5":
+      handleStore.controlValues.axis5.zRotatingDeg = numericValue;
+      break;
+    case "axis6":
+      handleStore.controlValues.axis6.xRotatingDeg = numericValue;
+      break;
+  }
+};
 
 const dracoLoader = new DRACOLoader();
 dracoLoader.setDecoderPath(
@@ -128,8 +182,6 @@ watch(
 // **新增：模型加载完成时的回调，用于打印结构**
 const onModelLoad = (gltf: any) => {
   console.log("=== 模型加载完成 ===");
-  // 1. 初始化 Pinia Store
-  handleStore.initFromScene(gltf.scene);
   handleStore.bindControlTargets(gltf.scene);
 };
 </script>
@@ -184,9 +236,6 @@ const onModelLoad = (gltf: any) => {
         <TresGridHelper :args="[20, 20, '#444444', '#333333']" />
         <!-- 坐标轴指示器：红绿蓝三轴 -->
         <TresAxesHelper :args="[2]" />
-
-        <!-- 加入模型位置同步控制器 -->
-        <ModelSync />
 
         <!-- Suspense 使用完整结构，可处理加载状态 -->
         <Suspense>
@@ -305,29 +354,17 @@ const onModelLoad = (gltf: any) => {
           <div class="axis-title">{{ axisName }}</div>
 
           <div class="input-row">
-            <span>X旋转(°)</span>
+            <span>{{ axisLabels[axisName] }}</span>
             <input
               type="number"
               step="1"
-              v-model.number="handleStore.controlValues[axisName].xRotationDeg"
-            />
-          </div>
-
-          <div class="input-row">
-            <span>Y旋转(°)</span>
-            <input
-              type="number"
-              step="1"
-              v-model.number="handleStore.controlValues[axisName].yRotationDeg"
-            />
-          </div>
-
-          <div class="input-row">
-            <span>Z旋转(°)</span>
-            <input
-              type="number"
-              step="1"
-              v-model.number="handleStore.controlValues[axisName].zRotationDeg"
+              :value="getAxisControlValue(axisName)"
+              @input="
+                setAxisControlValue(
+                  axisName,
+                  ($event.target as HTMLInputElement).value,
+                )
+              "
             />
           </div>
         </div>

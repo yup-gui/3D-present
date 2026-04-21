@@ -28,10 +28,28 @@ type Gripper4Controls = {
   catchRotateYDeg: number;
 };
 
-type AxisRotationControls = {
-  xRotationDeg: number;
-  yRotationDeg: number;
-  zRotationDeg: number;
+type Axis1Controls = {
+  yRotatingDeg: number;
+};
+
+type Axis2Controls = {
+  zRotatingDeg: number;
+};
+
+type Axis3Controls = {
+  zRotatingDeg: number;
+};
+
+type Axis4Controls = {
+  xRotatingDeg: number;
+};
+
+type Axis5Controls = {
+  zRotatingDeg: number;
+};
+
+type Axis6Controls = {
+  xRotatingDeg: number;
 };
 
 type TwinControlSnapshot = {
@@ -41,12 +59,12 @@ type TwinControlSnapshot = {
   gripper2: Partial<GripperControls>;
   gripper3: Partial<GripperControls>;
   gripper4: Partial<Gripper4Controls>;
-  axis1: Partial<AxisRotationControls>;
-  axis2: Partial<AxisRotationControls>;
-  axis3: Partial<AxisRotationControls>;
-  axis4: Partial<AxisRotationControls>;
-  axis5: Partial<AxisRotationControls>;
-  axis6: Partial<AxisRotationControls>;
+  axis1: Partial<Axis1Controls>;
+  axis2: Partial<Axis2Controls>;
+  axis3: Partial<Axis3Controls>;
+  axis4: Partial<Axis4Controls>;
+  axis5: Partial<Axis5Controls>;
+  axis6: Partial<Axis6Controls>;
 };
 
 type ControlValueState = {
@@ -56,13 +74,16 @@ type ControlValueState = {
   gripper2: GripperControls;
   gripper3: GripperControls;
   gripper4: Gripper4Controls;
-  axis1: AxisRotationControls;
-  axis2: AxisRotationControls;
-  axis3: AxisRotationControls;
-  axis4: AxisRotationControls;
-  axis5: AxisRotationControls;
-  axis6: AxisRotationControls;
+  axis1: Axis1Controls;
+  axis2: Axis2Controls;
+  axis3: Axis3Controls;
+  axis4: Axis4Controls;
+  axis5: Axis5Controls;
+  axis6: Axis6Controls;
 };
+
+type ControlGroupKey = keyof ControlValueState;
+type DirectionMap = Record<string, 1 | -1>;
 
 export const useHandleStore = defineStore("Handle", () => {
   const MM_TO_M = 0.001;
@@ -74,12 +95,6 @@ export const useHandleStore = defineStore("Handle", () => {
   const roundToPrecision = (value: number) =>
     Number(value.toFixed(DISPLAY_PRECISION));
 
-  // 核心数据源：存储所有零件的位置信息
-  // 结构: { "零件名": { position: { x: 0, y: 0, z: 0 } } }
-  const partTransforms = reactive<
-    Record<string, { position: { x: number; y: number; z: number } }>
-  >({});
-
   const controlValues = reactive<{
     positioningPin: PositioningPinControls;
     leftPositioningPin: LeftPositioningPinControls;
@@ -87,12 +102,12 @@ export const useHandleStore = defineStore("Handle", () => {
     gripper2: GripperControls;
     gripper3: GripperControls;
     gripper4: Gripper4Controls;
-    axis1: AxisRotationControls;
-    axis2: AxisRotationControls;
-    axis3: AxisRotationControls;
-    axis4: AxisRotationControls;
-    axis5: AxisRotationControls;
-    axis6: AxisRotationControls;
+    axis1: Axis1Controls;
+    axis2: Axis2Controls;
+    axis3: Axis3Controls;
+    axis4: Axis4Controls;
+    axis5: Axis5Controls;
+    axis6: Axis6Controls;
   }>({
     positioningPin: {
       zRotationDeg: 0,
@@ -127,40 +142,26 @@ export const useHandleStore = defineStore("Handle", () => {
       catchRotateYDeg: 0,
     },
     axis1: {
-      xRotationDeg: 0,
-      yRotationDeg: 0,
-      zRotationDeg: 0,
+      yRotatingDeg: 0,
     },
     axis2: {
-      xRotationDeg: 0,
-      yRotationDeg: 0,
-      zRotationDeg: 0,
+      zRotatingDeg: 0,
     },
     axis3: {
-      xRotationDeg: 0,
-      yRotationDeg: 0,
-      zRotationDeg: 0,
+      zRotatingDeg: 0,
     },
     axis4: {
-      xRotationDeg: 0,
-      yRotationDeg: 0,
-      zRotationDeg: 0,
+      xRotatingDeg: 0,
     },
     axis5: {
-      xRotationDeg: 0,
-      yRotationDeg: 0,
-      zRotationDeg: 0,
+      zRotatingDeg: 0,
     },
     axis6: {
-      xRotationDeg: 0,
-      yRotationDeg: 0,
-      zRotationDeg: 0,
+      xRotatingDeg: 0,
     },
   });
 
   let initialControlBaseline: ControlValueState | null = null;
-  const REVERSED_GRIPPER_ROTATE_KEYS = new Set(["catchRotateXDeg"]);
-  const REVERSED_GRIPPER4_ROTATE_KEYS = new Set(["catchRotateYDeg"]);
   const AXIS_CONTROL_KEYS = [
     "axis1",
     "axis2",
@@ -170,6 +171,58 @@ export const useHandleStore = defineStore("Handle", () => {
     "axis6",
   ] as const;
   type AxisControlKey = (typeof AXIS_CONTROL_KEYS)[number];
+  const CONTROL_DIRECTION_MAP: Record<ControlGroupKey, DirectionMap> = {
+    positioningPin: {
+      zRotationDeg: 1,
+      xMove: 1,
+      zMove: 1,
+      rightPinZMove: 1,
+    },
+    leftPositioningPin: {
+      zRotationDeg: 1,
+      xMove: 1,
+      zMove: 1,
+      leftPinZMove: 1,
+    },
+    gripper: {
+      yMove: 1,
+      zMove: 1,
+      catchRotateXDeg: -1,
+    },
+    gripper2: {
+      yMove: 1,
+      zMove: -1,
+      catchRotateXDeg: -1,
+    },
+    gripper3: {
+      yMove: 1,
+      zMove: -1,
+      catchRotateXDeg: 1,
+    },
+    gripper4: {
+      xMove: 1,
+      zMove: -1,
+      catchRotateYDeg: -1,
+    },
+    axis1: {
+      yRotatingDeg: 1,
+    },
+    axis2: {
+      zRotatingDeg: 1,
+    },
+    axis3: {
+      zRotatingDeg: 1,
+    },
+    axis4: {
+      xRotatingDeg: 1,
+    },
+    axis5: {
+      zRotatingDeg: 1,
+    },
+    axis6: {
+      xRotatingDeg: 1,
+    },
+  };
 
   const isFiniteNumber = (value: unknown): value is number =>
     typeof value === "number" && Number.isFinite(value);
@@ -221,7 +274,7 @@ export const useHandleStore = defineStore("Handle", () => {
     target: T,
     baseline: T,
     incoming?: Partial<T>,
-    reversedKeys: ReadonlySet<string> = new Set(),
+    directionMap: DirectionMap = {},
   ) => {
     if (!incoming) {
       return;
@@ -238,9 +291,8 @@ export const useHandleStore = defineStore("Handle", () => {
       }
 
       const baselineValue = baselineRecord[keyName] ?? 0;
-      targetRecord[keyName] = reversedKeys.has(keyName)
-        ? baselineValue - backendOffset
-        : baselineValue + backendOffset;
+      const direction = directionMap[keyName] ?? 1;
+      targetRecord[keyName] = baselineValue + backendOffset * direction;
     }
   };
 
@@ -273,110 +325,219 @@ export const useHandleStore = defineStore("Handle", () => {
     axis6: shallowRef<THREE.Object3D | null>(null),
   };
 
+  const positioningPinBaselines = {
+    rightPositioningPinYRotatingGroup: 0,
+    rightPositioningPinXMovingGroup: 0,
+    rightPositioningPinYMovingGroup: 0,
+    rightPin: 0,
+    leftPositioningPinYRotatingGroup: 0,
+    leftPositioningPinXMovingGroup: 0,
+    leftPositioningPinYMovingGroup: 0,
+    leftPin: 0,
+  };
+
+  const axisBaseQuaternions: Record<AxisControlKey, THREE.Quaternion | null> = {
+    axis1: null,
+    axis2: null,
+    axis3: null,
+    axis4: null,
+    axis5: null,
+    axis6: null,
+  };
+
+  const resetAxisControlsToZero = (axisName: AxisControlKey) => {
+    switch (axisName) {
+      case "axis1":
+        controlValues.axis1.yRotatingDeg = 0;
+        break;
+      case "axis2":
+        controlValues.axis2.zRotatingDeg = 0;
+        break;
+      case "axis3":
+        controlValues.axis3.zRotatingDeg = 0;
+        break;
+      case "axis4":
+        controlValues.axis4.xRotatingDeg = 0;
+        break;
+      case "axis5":
+        controlValues.axis5.zRotatingDeg = 0;
+        break;
+      case "axis6":
+        controlValues.axis6.xRotatingDeg = 0;
+        break;
+    }
+  };
+
+  const resetPositioningPinControlsToZero = () => {
+    controlValues.positioningPin.zRotationDeg = 0;
+    controlValues.positioningPin.xMove = 0;
+    controlValues.positioningPin.zMove = 0;
+    controlValues.positioningPin.rightPinZMove = 0;
+
+    controlValues.leftPositioningPin.zRotationDeg = 0;
+    controlValues.leftPositioningPin.xMove = 0;
+    controlValues.leftPositioningPin.zMove = 0;
+    controlValues.leftPositioningPin.leftPinZMove = 0;
+  };
+
+  const applySignedValue = (
+    value: number,
+    directionMap: DirectionMap,
+    keyName: string,
+  ) => value * (directionMap[keyName] ?? 1);
+
+  const readSignedValue = (
+    value: number,
+    directionMap: DirectionMap,
+    keyName: string,
+  ) => value * (directionMap[keyName] ?? 1);
+
   const applyAxisRotation = (axisName: AxisControlKey) => {
     const target = controlTargets[axisName].value;
-    const axisControls = controlValues[axisName];
+    const baseQuaternion = axisBaseQuaternions[axisName];
 
-    if (!target) {
+    if (!target || !baseQuaternion) {
       return;
     }
 
-    target.rotation.x = THREE.MathUtils.degToRad(axisControls.xRotationDeg);
-    target.rotation.y = THREE.MathUtils.degToRad(axisControls.yRotationDeg);
-    target.rotation.z = THREE.MathUtils.degToRad(axisControls.zRotationDeg);
+    const deltaEuler = new THREE.Euler(0, 0, 0, "XYZ");
+
+    switch (axisName) {
+      case "axis1":
+        deltaEuler.y = THREE.MathUtils.degToRad(
+          controlValues.axis1.yRotatingDeg,
+        );
+        break;
+      case "axis2":
+        deltaEuler.z = THREE.MathUtils.degToRad(
+          controlValues.axis2.zRotatingDeg,
+        );
+        break;
+      case "axis3":
+        deltaEuler.z = THREE.MathUtils.degToRad(
+          controlValues.axis3.zRotatingDeg,
+        );
+        break;
+      case "axis4":
+        deltaEuler.x = THREE.MathUtils.degToRad(
+          controlValues.axis4.xRotatingDeg,
+        );
+        break;
+      case "axis5":
+        deltaEuler.z = THREE.MathUtils.degToRad(
+          controlValues.axis5.zRotatingDeg,
+        );
+        break;
+      case "axis6":
+        deltaEuler.x = THREE.MathUtils.degToRad(
+          controlValues.axis6.xRotatingDeg,
+        );
+        break;
+    }
+
+    const deltaQuaternion = new THREE.Quaternion().setFromEuler(deltaEuler);
+
+    target.quaternion.copy(baseQuaternion).multiply(deltaQuaternion);
   };
 
   const syncAxisControlValuesFromScene = (axisName: AxisControlKey) => {
     const target = controlTargets[axisName].value;
-    const axisControls = controlValues[axisName];
+    const baseQuaternion = axisBaseQuaternions[axisName];
 
-    if (!target) {
+    if (!target || !baseQuaternion) {
       return;
     }
 
-    axisControls.xRotationDeg = THREE.MathUtils.radToDeg(target.rotation.x);
-    axisControls.yRotationDeg = THREE.MathUtils.radToDeg(target.rotation.y);
-    axisControls.zRotationDeg = THREE.MathUtils.radToDeg(target.rotation.z);
-  };
-
-  // 1. 初始化：从加载完成的模型中提取初始位置
-  const initFromScene = (scene: THREE.Object3D) => {
-    scene.traverse((child) => {
-      if ((child as THREE.Mesh).isMesh) {
-        // 如果该零件还没有记录，则记录初始值
-        if (!partTransforms[child.name]) {
-          partTransforms[child.name] = {
-            position: {
-              x: parseFloat(child.position.x.toFixed(3)),
-              y: parseFloat(child.position.y.toFixed(3)),
-              z: parseFloat(child.position.z.toFixed(3)),
-            },
-          };
-        }
-      }
-    });
-    console.log(
-      "HandleStore 初始化完成，共加载零件数:",
-      Object.keys(partTransforms).length,
+    const relativeQuaternion = baseQuaternion
+      .clone()
+      .invert()
+      .multiply(target.quaternion.clone());
+    const relativeEuler = new THREE.Euler().setFromQuaternion(
+      relativeQuaternion,
+      "XYZ",
     );
-  };
 
-  // 2. 更新逻辑：修改某个零件的某个轴坐标
-  const updatePartPosition = (
-    name: string,
-    axis: "x" | "y" | "z",
-    value: number,
-  ) => {
-    if (partTransforms[name]) {
-      partTransforms[name].position[axis] = value;
+    switch (axisName) {
+      case "axis1":
+        controlValues.axis1.yRotatingDeg = THREE.MathUtils.radToDeg(
+          relativeEuler.y,
+        );
+        break;
+      case "axis2":
+        controlValues.axis2.zRotatingDeg = THREE.MathUtils.radToDeg(
+          relativeEuler.z,
+        );
+        break;
+      case "axis3":
+        controlValues.axis3.zRotatingDeg = THREE.MathUtils.radToDeg(
+          relativeEuler.z,
+        );
+        break;
+      case "axis4":
+        controlValues.axis4.xRotatingDeg = THREE.MathUtils.radToDeg(
+          relativeEuler.x,
+        );
+        break;
+      case "axis5":
+        controlValues.axis5.zRotatingDeg = THREE.MathUtils.radToDeg(
+          relativeEuler.z,
+        );
+        break;
+      case "axis6":
+        controlValues.axis6.xRotatingDeg = THREE.MathUtils.radToDeg(
+          relativeEuler.x,
+        );
+        break;
     }
   };
 
   const applyControlValues = () => {
     if (controlTargets.rightPositioningPinYRotatingGroup.value) {
-      controlTargets.rightPositioningPinYRotatingGroup.value.rotation.z =
+      controlTargets.rightPositioningPinYRotatingGroup.value.rotation.y =
+        positioningPinBaselines.rightPositioningPinYRotatingGroup +
         THREE.MathUtils.degToRad(controlValues.positioningPin.zRotationDeg);
     }
 
     if (controlTargets.rightPositioningPinXMovingGroup.value) {
-      controlTargets.rightPositioningPinXMovingGroup.value.position.x = mmToM(
-        controlValues.positioningPin.xMove,
-      );
+      controlTargets.rightPositioningPinXMovingGroup.value.position.x =
+        mmToM(controlValues.positioningPin.xMove) +
+        positioningPinBaselines.rightPositioningPinXMovingGroup;
     }
 
     if (controlTargets.rightPositioningPinYMovingGroup.value) {
-      controlTargets.rightPositioningPinYMovingGroup.value.position.z = mmToM(
-        controlValues.positioningPin.zMove,
-      );
+      controlTargets.rightPositioningPinYMovingGroup.value.position.y =
+        mmToM(controlValues.positioningPin.zMove) +
+        positioningPinBaselines.rightPositioningPinYMovingGroup;
     }
 
     if (controlTargets.rightPin.value) {
-      controlTargets.rightPin.value.position.z = mmToM(
-        controlValues.positioningPin.rightPinZMove,
-      );
+      controlTargets.rightPin.value.position.y =
+        mmToM(controlValues.positioningPin.rightPinZMove) +
+        positioningPinBaselines.rightPin;
     }
 
     if (controlTargets.leftPositioningPinYRotatingGroup.value) {
-      controlTargets.leftPositioningPinYRotatingGroup.value.rotation.z =
+      controlTargets.leftPositioningPinYRotatingGroup.value.rotation.y =
+        positioningPinBaselines.leftPositioningPinYRotatingGroup +
         THREE.MathUtils.degToRad(controlValues.leftPositioningPin.zRotationDeg);
     }
 
     if (controlTargets.leftPositioningPinXMovingGroup.value) {
-      controlTargets.leftPositioningPinXMovingGroup.value.position.x = mmToM(
-        controlValues.leftPositioningPin.xMove,
-      );
+      controlTargets.leftPositioningPinXMovingGroup.value.position.x =
+        mmToM(controlValues.leftPositioningPin.xMove) +
+        positioningPinBaselines.leftPositioningPinXMovingGroup;
     }
 
     if (controlTargets.leftPositioningPinYMovingGroup.value) {
-      controlTargets.leftPositioningPinYMovingGroup.value.position.z = mmToM(
-        controlValues.leftPositioningPin.zMove,
-      );
+      controlTargets.leftPositioningPinYMovingGroup.value.position.y =
+        mmToM(controlValues.leftPositioningPin.zMove) +
+        positioningPinBaselines.leftPositioningPinYMovingGroup;
     }
 
     if (controlTargets.leftPin.value) {
-      controlTargets.leftPin.value.position.z = mmToM(
-        controlValues.leftPositioningPin.leftPinZMove,
-      );
+      controlTargets.leftPin.value.position.y =
+        mmToM(controlValues.leftPositioningPin.leftPinZMove) +
+        positioningPinBaselines.leftPin;
     }
 
     if (controlTargets.handle1ZMovingGroup.value) {
@@ -386,14 +547,24 @@ export const useHandleStore = defineStore("Handle", () => {
     }
 
     if (controlTargets.handle1YMovingGroup.value) {
-      controlTargets.handle1YMovingGroup.value.position.z = mmToM(
-        controlValues.gripper.zMove,
+      controlTargets.handle1YMovingGroup.value.position.y = mmToM(
+        applySignedValue(
+          controlValues.gripper.zMove,
+          CONTROL_DIRECTION_MAP.gripper,
+          "zMove",
+        ),
       );
     }
 
     if (controlTargets.handle1CratchUpX.value) {
       controlTargets.handle1CratchUpX.value.rotation.x =
-        THREE.MathUtils.degToRad(controlValues.gripper.catchRotateXDeg);
+        THREE.MathUtils.degToRad(
+          applySignedValue(
+            controlValues.gripper.catchRotateXDeg,
+            CONTROL_DIRECTION_MAP.gripper,
+            "catchRotateXDeg",
+          ),
+        );
     }
 
     if (controlTargets.handle2ZMovingGroup.value) {
@@ -403,14 +574,24 @@ export const useHandleStore = defineStore("Handle", () => {
     }
 
     if (controlTargets.handle2YMovingGroup.value) {
-      controlTargets.handle2YMovingGroup.value.position.z = mmToM(
-        controlValues.gripper2.zMove,
+      controlTargets.handle2YMovingGroup.value.position.y = mmToM(
+        applySignedValue(
+          controlValues.gripper2.zMove,
+          CONTROL_DIRECTION_MAP.gripper2,
+          "zMove",
+        ),
       );
     }
 
     if (controlTargets.handle2CratchUpX.value) {
       controlTargets.handle2CratchUpX.value.rotation.x =
-        THREE.MathUtils.degToRad(controlValues.gripper2.catchRotateXDeg);
+        THREE.MathUtils.degToRad(
+          applySignedValue(
+            controlValues.gripper2.catchRotateXDeg,
+            CONTROL_DIRECTION_MAP.gripper2,
+            "catchRotateXDeg",
+          ),
+        );
     }
 
     if (controlTargets.handle3ZMovingGroup.value) {
@@ -420,8 +601,12 @@ export const useHandleStore = defineStore("Handle", () => {
     }
 
     if (controlTargets.handle3YMovingGroup.value) {
-      controlTargets.handle3YMovingGroup.value.position.z = mmToM(
-        controlValues.gripper3.zMove,
+      controlTargets.handle3YMovingGroup.value.position.y = mmToM(
+        applySignedValue(
+          controlValues.gripper3.zMove,
+          CONTROL_DIRECTION_MAP.gripper3,
+          "zMove",
+        ),
       );
     }
 
@@ -437,14 +622,24 @@ export const useHandleStore = defineStore("Handle", () => {
     }
 
     if (controlTargets.handle4YMovingGroup.value) {
-      controlTargets.handle4YMovingGroup.value.position.z = mmToM(
-        controlValues.gripper4.zMove,
+      controlTargets.handle4YMovingGroup.value.position.y = mmToM(
+        applySignedValue(
+          controlValues.gripper4.zMove,
+          CONTROL_DIRECTION_MAP.gripper4,
+          "zMove",
+        ),
       );
     }
 
     if (controlTargets.handle4CratchUpZ.value) {
-      controlTargets.handle4CratchUpZ.value.rotation.y =
-        THREE.MathUtils.degToRad(controlValues.gripper4.catchRotateYDeg);
+      controlTargets.handle4CratchUpZ.value.rotation.z =
+        THREE.MathUtils.degToRad(
+          applySignedValue(
+            controlValues.gripper4.catchRotateYDeg,
+            CONTROL_DIRECTION_MAP.gripper4,
+            "catchRotateYDeg",
+          ),
+        );
     }
 
     AXIS_CONTROL_KEYS.forEach(applyAxisRotation);
@@ -453,49 +648,57 @@ export const useHandleStore = defineStore("Handle", () => {
   const syncControlValuesFromScene = () => {
     if (controlTargets.rightPositioningPinYRotatingGroup.value) {
       controlValues.positioningPin.zRotationDeg = THREE.MathUtils.radToDeg(
-        controlTargets.rightPositioningPinYRotatingGroup.value.rotation.z,
+        controlTargets.rightPositioningPinYRotatingGroup.value.rotation.y -
+          positioningPinBaselines.rightPositioningPinYRotatingGroup,
       );
     }
 
     if (controlTargets.rightPositioningPinXMovingGroup.value) {
       controlValues.positioningPin.xMove = mToMm(
-        controlTargets.rightPositioningPinXMovingGroup.value.position.x,
+        controlTargets.rightPositioningPinXMovingGroup.value.position.x -
+          positioningPinBaselines.rightPositioningPinXMovingGroup,
       );
     }
 
     if (controlTargets.rightPositioningPinYMovingGroup.value) {
       controlValues.positioningPin.zMove = mToMm(
-        controlTargets.rightPositioningPinYMovingGroup.value.position.z,
+        controlTargets.rightPositioningPinYMovingGroup.value.position.y -
+          positioningPinBaselines.rightPositioningPinYMovingGroup,
       );
     }
 
     if (controlTargets.rightPin.value) {
       controlValues.positioningPin.rightPinZMove = mToMm(
-        controlTargets.rightPin.value.position.z,
+        controlTargets.rightPin.value.position.y -
+          positioningPinBaselines.rightPin,
       );
     }
 
     if (controlTargets.leftPositioningPinYRotatingGroup.value) {
       controlValues.leftPositioningPin.zRotationDeg = THREE.MathUtils.radToDeg(
-        controlTargets.leftPositioningPinYRotatingGroup.value.rotation.z,
+        controlTargets.leftPositioningPinYRotatingGroup.value.rotation.y -
+          positioningPinBaselines.leftPositioningPinYRotatingGroup,
       );
     }
 
     if (controlTargets.leftPositioningPinXMovingGroup.value) {
       controlValues.leftPositioningPin.xMove = mToMm(
-        controlTargets.leftPositioningPinXMovingGroup.value.position.x,
+        controlTargets.leftPositioningPinXMovingGroup.value.position.x -
+          positioningPinBaselines.leftPositioningPinXMovingGroup,
       );
     }
 
     if (controlTargets.leftPositioningPinYMovingGroup.value) {
       controlValues.leftPositioningPin.zMove = mToMm(
-        controlTargets.leftPositioningPinYMovingGroup.value.position.z,
+        controlTargets.leftPositioningPinYMovingGroup.value.position.y -
+          positioningPinBaselines.leftPositioningPinYMovingGroup,
       );
     }
 
     if (controlTargets.leftPin.value) {
       controlValues.leftPositioningPin.leftPinZMove = mToMm(
-        controlTargets.leftPin.value.position.z,
+        controlTargets.leftPin.value.position.y -
+          positioningPinBaselines.leftPin,
       );
     }
 
@@ -506,14 +709,20 @@ export const useHandleStore = defineStore("Handle", () => {
     }
 
     if (controlTargets.handle1YMovingGroup.value) {
-      controlValues.gripper.zMove = mToMm(
-        controlTargets.handle1YMovingGroup.value.position.z,
+      controlValues.gripper.zMove = readSignedValue(
+        mToMm(controlTargets.handle1YMovingGroup.value.position.y),
+        CONTROL_DIRECTION_MAP.gripper,
+        "zMove",
       );
     }
 
     if (controlTargets.handle1CratchUpX.value) {
-      controlValues.gripper.catchRotateXDeg = THREE.MathUtils.radToDeg(
-        controlTargets.handle1CratchUpX.value.rotation.x,
+      controlValues.gripper.catchRotateXDeg = readSignedValue(
+        THREE.MathUtils.radToDeg(
+          controlTargets.handle1CratchUpX.value.rotation.x,
+        ),
+        CONTROL_DIRECTION_MAP.gripper,
+        "catchRotateXDeg",
       );
     }
 
@@ -524,14 +733,20 @@ export const useHandleStore = defineStore("Handle", () => {
     }
 
     if (controlTargets.handle2YMovingGroup.value) {
-      controlValues.gripper2.zMove = mToMm(
-        controlTargets.handle2YMovingGroup.value.position.z,
+      controlValues.gripper2.zMove = readSignedValue(
+        mToMm(controlTargets.handle2YMovingGroup.value.position.y),
+        CONTROL_DIRECTION_MAP.gripper2,
+        "zMove",
       );
     }
 
     if (controlTargets.handle2CratchUpX.value) {
-      controlValues.gripper2.catchRotateXDeg = THREE.MathUtils.radToDeg(
-        controlTargets.handle2CratchUpX.value.rotation.x,
+      controlValues.gripper2.catchRotateXDeg = readSignedValue(
+        THREE.MathUtils.radToDeg(
+          controlTargets.handle2CratchUpX.value.rotation.x,
+        ),
+        CONTROL_DIRECTION_MAP.gripper2,
+        "catchRotateXDeg",
       );
     }
 
@@ -542,8 +757,10 @@ export const useHandleStore = defineStore("Handle", () => {
     }
 
     if (controlTargets.handle3YMovingGroup.value) {
-      controlValues.gripper3.zMove = mToMm(
-        controlTargets.handle3YMovingGroup.value.position.z,
+      controlValues.gripper3.zMove = readSignedValue(
+        mToMm(controlTargets.handle3YMovingGroup.value.position.y),
+        CONTROL_DIRECTION_MAP.gripper3,
+        "zMove",
       );
     }
 
@@ -560,14 +777,20 @@ export const useHandleStore = defineStore("Handle", () => {
     }
 
     if (controlTargets.handle4YMovingGroup.value) {
-      controlValues.gripper4.zMove = mToMm(
-        controlTargets.handle4YMovingGroup.value.position.z,
+      controlValues.gripper4.zMove = readSignedValue(
+        mToMm(controlTargets.handle4YMovingGroup.value.position.y),
+        CONTROL_DIRECTION_MAP.gripper4,
+        "zMove",
       );
     }
 
     if (controlTargets.handle4CratchUpZ.value) {
-      controlValues.gripper4.catchRotateYDeg = THREE.MathUtils.radToDeg(
-        controlTargets.handle4CratchUpZ.value.rotation.y,
+      controlValues.gripper4.catchRotateYDeg = readSignedValue(
+        THREE.MathUtils.radToDeg(
+          controlTargets.handle4CratchUpZ.value.rotation.z,
+        ),
+        CONTROL_DIRECTION_MAP.gripper4,
+        "catchRotateYDeg",
       );
     }
 
@@ -622,6 +845,32 @@ export const useHandleStore = defineStore("Handle", () => {
     controlTargets.axis5.value = scene.getObjectByName("axis5") ?? null;
     controlTargets.axis6.value = scene.getObjectByName("axis6") ?? null;
 
+    positioningPinBaselines.rightPositioningPinYRotatingGroup =
+      controlTargets.rightPositioningPinYRotatingGroup.value?.rotation.y ?? 0;
+    positioningPinBaselines.rightPositioningPinXMovingGroup =
+      controlTargets.rightPositioningPinXMovingGroup.value?.position.x ?? 0;
+    positioningPinBaselines.rightPositioningPinYMovingGroup =
+      controlTargets.rightPositioningPinYMovingGroup.value?.position.y ?? 0;
+    positioningPinBaselines.rightPin =
+      controlTargets.rightPin.value?.position.y ?? 0;
+    positioningPinBaselines.leftPositioningPinYRotatingGroup =
+      controlTargets.leftPositioningPinYRotatingGroup.value?.rotation.y ?? 0;
+    positioningPinBaselines.leftPositioningPinXMovingGroup =
+      controlTargets.leftPositioningPinXMovingGroup.value?.position.x ?? 0;
+    positioningPinBaselines.leftPositioningPinYMovingGroup =
+      controlTargets.leftPositioningPinYMovingGroup.value?.position.y ?? 0;
+    positioningPinBaselines.leftPin =
+      controlTargets.leftPin.value?.position.y ?? 0;
+
+    AXIS_CONTROL_KEYS.forEach((axisName) => {
+      const axisTarget = controlTargets[axisName].value;
+      axisBaseQuaternions[axisName] = axisTarget
+        ? axisTarget.quaternion.clone()
+        : null;
+      resetAxisControlsToZero(axisName);
+    });
+    resetPositioningPinControlsToZero();
+
     Object.entries(controlTargets).forEach(([name, refNode]) => {
       if (!refNode.value) {
         console.warn(`未找到控制对象: ${name}`);
@@ -675,7 +924,13 @@ export const useHandleStore = defineStore("Handle", () => {
 
   const updateAxisControls = (
     axisName: AxisControlKey,
-    payload: Partial<AxisRotationControls>,
+    payload:
+      | Partial<Axis1Controls>
+      | Partial<Axis2Controls>
+      | Partial<Axis3Controls>
+      | Partial<Axis4Controls>
+      | Partial<Axis5Controls>
+      | Partial<Axis6Controls>,
   ) => {
     Object.assign(controlValues[axisName], payload);
     normalizeControlValuePrecision();
@@ -701,24 +956,25 @@ export const useHandleStore = defineStore("Handle", () => {
       controlValues.gripper,
       initialControlBaseline.gripper,
       payload.gripper,
-      REVERSED_GRIPPER_ROTATE_KEYS,
+      CONTROL_DIRECTION_MAP.gripper,
     );
     applyOffsetFromZero(
       controlValues.gripper2,
       initialControlBaseline.gripper2,
       payload.gripper2,
-      REVERSED_GRIPPER_ROTATE_KEYS,
+      CONTROL_DIRECTION_MAP.gripper2,
     );
     applyOffsetFromZero(
       controlValues.gripper3,
       initialControlBaseline.gripper3,
       payload.gripper3,
+      CONTROL_DIRECTION_MAP.gripper3,
     );
     applyOffsetFromZero(
       controlValues.gripper4,
       initialControlBaseline.gripper4,
       payload.gripper4,
-      REVERSED_GRIPPER4_ROTATE_KEYS,
+      CONTROL_DIRECTION_MAP.gripper4,
     );
     applyOffsetFromZero(
       controlValues.axis1,
@@ -785,10 +1041,8 @@ export const useHandleStore = defineStore("Handle", () => {
   watch(controlValues, applyControlValues, { deep: true });
 
   return {
-    partTransforms,
     controlValues,
-    initFromScene,
-    updatePartPosition,
+    CONTROL_DIRECTION_MAP,
     bindControlTargets,
     updatePositioningPinControls,
     updateGripperControls,
