@@ -3,15 +3,21 @@ import { computed, onBeforeUnmount, shallowRef, watch } from "vue";
 import { TresCanvas } from "@tresjs/core";
 import { useGraph, useLoader } from "@tresjs/core";
 import { OrbitControls } from "@tresjs/cientos";
-import OutlineEffect from "./OutlineEffect.vue";
 import ModelSync from "./ModelSync.vue";
-import * as THREE from "three";
 import type { GLTF } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { DRACOLoader } from "three/examples/jsm/loaders/DRACOLoader.js";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { useHandleStore } from "@/stores/handle";
 
 const handleStore = useHandleStore();
+const axisControlKeys = [
+  "axis1",
+  "axis2",
+  "axis3",
+  "axis4",
+  "axis5",
+  "axis6",
+] as const;
 
 const dracoLoader = new DRACOLoader();
 dracoLoader.setDecoderPath(
@@ -20,7 +26,7 @@ dracoLoader.setDecoderPath(
 
 const { state: model } = useLoader<GLTF>(
   GLTFLoader,
-  "/models/总装_第一版0304.glb",
+  "/models/总装_第二版0421.glb",
   {
     extensions: (loader) => {
       if (loader instanceof GLTFLoader) {
@@ -119,25 +125,6 @@ watch(
   { immediate: true },
 );
 
-// 存储被选中的对象的数组
-const selectedObjects = shallowRef<THREE.Mesh[]>([]);
-// 当模型被点击时触发
-const onClickModel = (intersection: any) => {
-  // 阻止事件穿透
-  intersection.stopPropagation?.();
-
-  const object = intersection.object;
-  if (selectedObjects.value[0] === object) return;
-
-  // 设置高亮
-  selectedObjects.value = [object];
-};
-
-// 点击背景清除选中状态
-const clearSelection = () => {
-  selectedObjects.value = [];
-};
-
 // **新增：模型加载完成时的回调，用于打印结构**
 const onModelLoad = (gltf: any) => {
   console.log("=== 模型加载完成 ===");
@@ -151,11 +138,7 @@ const onModelLoad = (gltf: any) => {
   <div class="scene-body">
     <div class="scene-container">
       <!-- 背景颜色调整为类似 Blender 默认深灰色 #2b2b2b -->
-      <TresCanvas
-        clear-color="#2b2b2b"
-        window-size
-        @pointermissed="clearSelection"
-      >
+      <TresCanvas clear-color="#2b2b2b" window-size>
         <!-- 透视相机：调整至经典的斜45度等大视角位置 -->
         <TresPerspectiveCamera
           make-default
@@ -171,22 +154,29 @@ const onModelLoad = (gltf: any) => {
           :damping-factor="0.05"
         />
 
-        <!-- === 灯光组：降低强度，回归沉稳工业风 === -->
-        <!-- 环境光：提供基础亮度，稍微调暗防止过曝 -->
-        <TresAmbientLight :intensity="0.8" />
+        <!-- === 灯光组：压低整体亮度，保留工业设备的体积感 === -->
+        <!-- 环境光：仅保留基础可见度，避免模型整体发白 -->
+        <TresAmbientLight :intensity="0.35" />
 
-        <!-- 半球光：保留天光和地反光，调低亮度 -->
+        <!-- 半球光：弱化顶部泛白与地面反弹光 -->
         <TresHemisphereLight
-          sky-color="#ffffff"
-          ground-color="#444444"
-          :intensity="0.8"
+          sky-color="#d8dde3"
+          ground-color="#2b2622"
+          :intensity="0.3"
         />
 
-        <!-- 主平行光：打出微弱侧面光影增加立体感 -->
+        <!-- 主平行光：作为主要塑形光，亮度更克制一些 -->
         <TresDirectionalLight
-          :position="[10, 10, 5]"
-          :intensity="0.6"
+          :position="[8, 10, 6]"
+          :intensity="0.42"
           cast-shadow
+        />
+
+        <!-- 辅助侧逆光：轻微勾边，避免暗部完全糊掉 -->
+        <TresDirectionalLight
+          :position="[-6, 4, -5]"
+          color="#9fb2c6"
+          :intensity="0.18"
         />
 
         <!-- === 场景辅助器具 === -->
@@ -195,9 +185,6 @@ const onModelLoad = (gltf: any) => {
         <!-- 坐标轴指示器：红绿蓝三轴 -->
         <TresAxesHelper :args="[2]" />
 
-        <!-- 加入自行封装的 Outline 后期处理组合器 -->
-        <OutlineEffect :selected-objects="selectedObjects" />
-
         <!-- 加入模型位置同步控制器 -->
         <ModelSync />
 
@@ -205,16 +192,8 @@ const onModelLoad = (gltf: any) => {
         <Suspense>
           <!-- 加载成功的展示区：将模型沿 X 轴旋转 90 度 (Math.PI / 2 弧度) -->
           <template #default>
-            <primitive
-              v-if="nodes.Scene"
-              :object="nodes.Scene"
-              @click="onClickModel"
-            />
-            <primitive
-              v-else-if="scene"
-              :object="scene"
-              @click="onClickModel"
-            />
+            <primitive v-if="nodes.Scene" :object="nodes.Scene" />
+            <primitive v-else-if="scene" :object="scene" />
           </template>
           <!-- 这里你可以放一个 HTML 的 Loading 动画，目前模型较小可留空 -->
           <template #fallback>
@@ -314,6 +293,45 @@ const onModelLoad = (gltf: any) => {
           />
         </div>
       </div>
+
+      <div class="control-group">
+        <h4 class="group-title">机械臂轴</h4>
+
+        <div
+          v-for="axisName in axisControlKeys"
+          :key="axisName"
+          class="axis-control-card"
+        >
+          <div class="axis-title">{{ axisName }}</div>
+
+          <div class="input-row">
+            <span>X旋转(°)</span>
+            <input
+              type="number"
+              step="1"
+              v-model.number="handleStore.controlValues[axisName].xRotationDeg"
+            />
+          </div>
+
+          <div class="input-row">
+            <span>Y旋转(°)</span>
+            <input
+              type="number"
+              step="1"
+              v-model.number="handleStore.controlValues[axisName].yRotationDeg"
+            />
+          </div>
+
+          <div class="input-row">
+            <span>Z旋转(°)</span>
+            <input
+              type="number"
+              step="1"
+              v-model.number="handleStore.controlValues[axisName].zRotationDeg"
+            />
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 </template>
@@ -359,6 +377,23 @@ const onModelLoad = (gltf: any) => {
   margin: 0;
   font-size: 1em;
   color: #ddd;
+}
+
+.axis-control-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 10px;
+  border: 1px solid #3d3d3d;
+  border-radius: 6px;
+  background: #252525;
+}
+
+.axis-title {
+  font-size: 0.95em;
+  font-weight: 600;
+  color: #f0f0f0;
+  text-transform: uppercase;
 }
 
 .twin-row {

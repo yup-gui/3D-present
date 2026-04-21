@@ -28,6 +28,12 @@ type Gripper4Controls = {
   catchRotateYDeg: number;
 };
 
+type AxisRotationControls = {
+  xRotationDeg: number;
+  yRotationDeg: number;
+  zRotationDeg: number;
+};
+
 type TwinControlSnapshot = {
   positioningPin: Partial<PositioningPinControls>;
   leftPositioningPin: Partial<LeftPositioningPinControls>;
@@ -35,6 +41,12 @@ type TwinControlSnapshot = {
   gripper2: Partial<GripperControls>;
   gripper3: Partial<GripperControls>;
   gripper4: Partial<Gripper4Controls>;
+  axis1: Partial<AxisRotationControls>;
+  axis2: Partial<AxisRotationControls>;
+  axis3: Partial<AxisRotationControls>;
+  axis4: Partial<AxisRotationControls>;
+  axis5: Partial<AxisRotationControls>;
+  axis6: Partial<AxisRotationControls>;
 };
 
 type ControlValueState = {
@@ -44,6 +56,12 @@ type ControlValueState = {
   gripper2: GripperControls;
   gripper3: GripperControls;
   gripper4: Gripper4Controls;
+  axis1: AxisRotationControls;
+  axis2: AxisRotationControls;
+  axis3: AxisRotationControls;
+  axis4: AxisRotationControls;
+  axis5: AxisRotationControls;
+  axis6: AxisRotationControls;
 };
 
 export const useHandleStore = defineStore("Handle", () => {
@@ -69,6 +87,12 @@ export const useHandleStore = defineStore("Handle", () => {
     gripper2: GripperControls;
     gripper3: GripperControls;
     gripper4: Gripper4Controls;
+    axis1: AxisRotationControls;
+    axis2: AxisRotationControls;
+    axis3: AxisRotationControls;
+    axis4: AxisRotationControls;
+    axis5: AxisRotationControls;
+    axis6: AxisRotationControls;
   }>({
     positioningPin: {
       zRotationDeg: 0,
@@ -102,11 +126,50 @@ export const useHandleStore = defineStore("Handle", () => {
       zMove: 0,
       catchRotateYDeg: 0,
     },
+    axis1: {
+      xRotationDeg: 0,
+      yRotationDeg: 0,
+      zRotationDeg: 0,
+    },
+    axis2: {
+      xRotationDeg: 0,
+      yRotationDeg: 0,
+      zRotationDeg: 0,
+    },
+    axis3: {
+      xRotationDeg: 0,
+      yRotationDeg: 0,
+      zRotationDeg: 0,
+    },
+    axis4: {
+      xRotationDeg: 0,
+      yRotationDeg: 0,
+      zRotationDeg: 0,
+    },
+    axis5: {
+      xRotationDeg: 0,
+      yRotationDeg: 0,
+      zRotationDeg: 0,
+    },
+    axis6: {
+      xRotationDeg: 0,
+      yRotationDeg: 0,
+      zRotationDeg: 0,
+    },
   });
 
   let initialControlBaseline: ControlValueState | null = null;
   const REVERSED_GRIPPER_ROTATE_KEYS = new Set(["catchRotateXDeg"]);
   const REVERSED_GRIPPER4_ROTATE_KEYS = new Set(["catchRotateYDeg"]);
+  const AXIS_CONTROL_KEYS = [
+    "axis1",
+    "axis2",
+    "axis3",
+    "axis4",
+    "axis5",
+    "axis6",
+  ] as const;
+  type AxisControlKey = (typeof AXIS_CONTROL_KEYS)[number];
 
   const isFiniteNumber = (value: unknown): value is number =>
     typeof value === "number" && Number.isFinite(value);
@@ -118,6 +181,12 @@ export const useHandleStore = defineStore("Handle", () => {
     gripper2: { ...controlValues.gripper2 },
     gripper3: { ...controlValues.gripper3 },
     gripper4: { ...controlValues.gripper4 },
+    axis1: { ...controlValues.axis1 },
+    axis2: { ...controlValues.axis2 },
+    axis3: { ...controlValues.axis3 },
+    axis4: { ...controlValues.axis4 },
+    axis5: { ...controlValues.axis5 },
+    axis6: { ...controlValues.axis6 },
   });
 
   const normalizeNumericRecord = <T extends Record<string, number>>(
@@ -140,6 +209,12 @@ export const useHandleStore = defineStore("Handle", () => {
     normalizeNumericRecord(controlValues.gripper2);
     normalizeNumericRecord(controlValues.gripper3);
     normalizeNumericRecord(controlValues.gripper4);
+    normalizeNumericRecord(controlValues.axis1);
+    normalizeNumericRecord(controlValues.axis2);
+    normalizeNumericRecord(controlValues.axis3);
+    normalizeNumericRecord(controlValues.axis4);
+    normalizeNumericRecord(controlValues.axis5);
+    normalizeNumericRecord(controlValues.axis6);
   };
 
   const applyOffsetFromZero = <T extends Record<string, number>>(
@@ -190,6 +265,38 @@ export const useHandleStore = defineStore("Handle", () => {
     handle4XMovingGroup: shallowRef<THREE.Object3D | null>(null),
     handle4YMovingGroup: shallowRef<THREE.Object3D | null>(null),
     handle4CratchUpZ: shallowRef<THREE.Object3D | null>(null),
+    axis1: shallowRef<THREE.Object3D | null>(null),
+    axis2: shallowRef<THREE.Object3D | null>(null),
+    axis3: shallowRef<THREE.Object3D | null>(null),
+    axis4: shallowRef<THREE.Object3D | null>(null),
+    axis5: shallowRef<THREE.Object3D | null>(null),
+    axis6: shallowRef<THREE.Object3D | null>(null),
+  };
+
+  const applyAxisRotation = (axisName: AxisControlKey) => {
+    const target = controlTargets[axisName].value;
+    const axisControls = controlValues[axisName];
+
+    if (!target) {
+      return;
+    }
+
+    target.rotation.x = THREE.MathUtils.degToRad(axisControls.xRotationDeg);
+    target.rotation.y = THREE.MathUtils.degToRad(axisControls.yRotationDeg);
+    target.rotation.z = THREE.MathUtils.degToRad(axisControls.zRotationDeg);
+  };
+
+  const syncAxisControlValuesFromScene = (axisName: AxisControlKey) => {
+    const target = controlTargets[axisName].value;
+    const axisControls = controlValues[axisName];
+
+    if (!target) {
+      return;
+    }
+
+    axisControls.xRotationDeg = THREE.MathUtils.radToDeg(target.rotation.x);
+    axisControls.yRotationDeg = THREE.MathUtils.radToDeg(target.rotation.y);
+    axisControls.zRotationDeg = THREE.MathUtils.radToDeg(target.rotation.z);
   };
 
   // 1. 初始化：从加载完成的模型中提取初始位置
@@ -339,6 +446,8 @@ export const useHandleStore = defineStore("Handle", () => {
       controlTargets.handle4CratchUpZ.value.rotation.y =
         THREE.MathUtils.degToRad(controlValues.gripper4.catchRotateYDeg);
     }
+
+    AXIS_CONTROL_KEYS.forEach(applyAxisRotation);
   };
 
   const syncControlValuesFromScene = () => {
@@ -462,6 +571,8 @@ export const useHandleStore = defineStore("Handle", () => {
       );
     }
 
+    AXIS_CONTROL_KEYS.forEach(syncAxisControlValuesFromScene);
+
     normalizeControlValuePrecision();
   };
 
@@ -504,6 +615,12 @@ export const useHandleStore = defineStore("Handle", () => {
       scene.getObjectByName("handle4YMovingGroup") ?? null;
     controlTargets.handle4CratchUpZ.value =
       scene.getObjectByName("handle4CratchUpZ") ?? null;
+    controlTargets.axis1.value = scene.getObjectByName("axis1") ?? null;
+    controlTargets.axis2.value = scene.getObjectByName("axis2") ?? null;
+    controlTargets.axis3.value = scene.getObjectByName("axis3") ?? null;
+    controlTargets.axis4.value = scene.getObjectByName("axis4") ?? null;
+    controlTargets.axis5.value = scene.getObjectByName("axis5") ?? null;
+    controlTargets.axis6.value = scene.getObjectByName("axis6") ?? null;
 
     Object.entries(controlTargets).forEach(([name, refNode]) => {
       if (!refNode.value) {
@@ -556,6 +673,15 @@ export const useHandleStore = defineStore("Handle", () => {
     applyControlValues();
   };
 
+  const updateAxisControls = (
+    axisName: AxisControlKey,
+    payload: Partial<AxisRotationControls>,
+  ) => {
+    Object.assign(controlValues[axisName], payload);
+    normalizeControlValuePrecision();
+    applyControlValues();
+  };
+
   const applyTwinSnapshot = (payload: Partial<TwinControlSnapshot>) => {
     if (!initialControlBaseline) {
       initialControlBaseline = createControlValueSnapshot();
@@ -594,6 +720,36 @@ export const useHandleStore = defineStore("Handle", () => {
       payload.gripper4,
       REVERSED_GRIPPER4_ROTATE_KEYS,
     );
+    applyOffsetFromZero(
+      controlValues.axis1,
+      initialControlBaseline.axis1,
+      payload.axis1,
+    );
+    applyOffsetFromZero(
+      controlValues.axis2,
+      initialControlBaseline.axis2,
+      payload.axis2,
+    );
+    applyOffsetFromZero(
+      controlValues.axis3,
+      initialControlBaseline.axis3,
+      payload.axis3,
+    );
+    applyOffsetFromZero(
+      controlValues.axis4,
+      initialControlBaseline.axis4,
+      payload.axis4,
+    );
+    applyOffsetFromZero(
+      controlValues.axis5,
+      initialControlBaseline.axis5,
+      payload.axis5,
+    );
+    applyOffsetFromZero(
+      controlValues.axis6,
+      initialControlBaseline.axis6,
+      payload.axis6,
+    );
 
     normalizeControlValuePrecision();
     applyControlValues();
@@ -616,6 +772,12 @@ export const useHandleStore = defineStore("Handle", () => {
     Object.assign(controlValues.gripper2, initialControlBaseline.gripper2);
     Object.assign(controlValues.gripper3, initialControlBaseline.gripper3);
     Object.assign(controlValues.gripper4, initialControlBaseline.gripper4);
+    Object.assign(controlValues.axis1, initialControlBaseline.axis1);
+    Object.assign(controlValues.axis2, initialControlBaseline.axis2);
+    Object.assign(controlValues.axis3, initialControlBaseline.axis3);
+    Object.assign(controlValues.axis4, initialControlBaseline.axis4);
+    Object.assign(controlValues.axis5, initialControlBaseline.axis5);
+    Object.assign(controlValues.axis6, initialControlBaseline.axis6);
     normalizeControlValuePrecision();
     applyControlValues();
   };
@@ -634,6 +796,7 @@ export const useHandleStore = defineStore("Handle", () => {
     updateGripper2Controls,
     updateGripper3Controls,
     updateGripper4Controls,
+    updateAxisControls,
     applyTwinSnapshot,
     resetTwinIncrementBaseline,
     applyControlValues,
