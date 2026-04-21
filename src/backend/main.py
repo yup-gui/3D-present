@@ -58,6 +58,13 @@ def _env_bool(name: str, default: bool) -> bool:
     return raw.strip().lower() in {"1", "true", "yes", "on"}
 
 
+def _env_str(name: str, default: str = "") -> str:
+    raw = os.getenv(name)
+    if raw is None:
+        return default
+    return raw.strip()
+
+
 # PLC中各个变量的NodeId映射，key是前端和广播中使用的名称，value是实际OPC UA中的NodeId，需要根据实际PLC的地址进行调整
 DEFAULT_NODE_MAP: dict[str, dict[str, str]] = {
     "positioningPin": {
@@ -92,23 +99,26 @@ DEFAULT_NODE_MAP: dict[str, dict[str, str]] = {
         "zMove": "ns=4;i=430", #gripper4的纵向移动距离，单位毫米
         "catchRotateYDeg": "ns=4;i=485", #gripper4的夹取旋转角度，布尔值
     },
+    "attachment": {
+        "doorAttached": _env_str("OPCUA_NODE_DOOR_ATTACHED"),
+    },
     "axis1": {
-        "yRotatingDeg": "OPCUA_NODE_AXIS1_Y_ROTATING_DEG",
+        "yRotatingDeg": _env_str("OPCUA_NODE_AXIS1_Y_ROTATING_DEG"),
     },
     "axis2": {
-        "zRotatingDeg": "OPCUA_NODE_AXIS2_Z_ROTATING_DEG",
+        "zRotatingDeg": _env_str("OPCUA_NODE_AXIS2_Z_ROTATING_DEG"),
     },
     "axis3": {
-        "zRotatingDeg": "OPCUA_NODE_AXIS3_Z_ROTATING_DEG",
+        "zRotatingDeg": _env_str("OPCUA_NODE_AXIS3_Z_ROTATING_DEG"),
     },
     "axis4": {
-        "xRotatingDeg": "OPCUA_NODE_AXIS4_X_ROTATING_DEG",
+        "xRotatingDeg": _env_str("OPCUA_NODE_AXIS4_X_ROTATING_DEG"),
     },
     "axis5": {
-        "zRotatingDeg": "OPCUA_NODE_AXIS5_Z_ROTATING_DEG",
+        "zRotatingDeg": _env_str("OPCUA_NODE_AXIS5_Z_ROTATING_DEG"),
     },
     "axis6": {
-        "xRotatingDeg": "OPCUA_NODE_AXIS6_X_ROTATING_DEG",
+        "xRotatingDeg": _env_str("OPCUA_NODE_AXIS6_X_ROTATING_DEG"),
     },
 }
 
@@ -232,14 +242,21 @@ class TwinBridge:
             snapshot[group_name] = {}
             for field_name, node_id in fields.items():
                 if not node_id:
-                    snapshot[group_name][field_name] = 0.0
+                    snapshot[group_name][field_name] = (
+                        False if group_name == "attachment" else 0.0
+                    )
                     continue
                 try:
                     node = client.get_node(node_id)
                     value = await node.read_value()
-                    snapshot[group_name][field_name] = float(value)
+                    if group_name == "attachment":
+                        snapshot[group_name][field_name] = bool(value)
+                    else:
+                        snapshot[group_name][field_name] = float(value)
                 except Exception:
-                    snapshot[group_name][field_name] = 0.0
+                    snapshot[group_name][field_name] = (
+                        False if group_name == "attachment" else 0.0
+                    )
 
         return snapshot
 # # 模拟数据生成器，用于开发和测试阶段，当PLC不可用时提供动态变化的数据

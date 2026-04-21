@@ -52,6 +52,10 @@ type Axis6Controls = {
   xRotatingDeg: number;
 };
 
+type AttachmentControls = {
+  doorAttached: boolean;
+};
+
 type TwinControlSnapshot = {
   positioningPin: Partial<PositioningPinControls>;
   leftPositioningPin: Partial<LeftPositioningPinControls>;
@@ -65,6 +69,7 @@ type TwinControlSnapshot = {
   axis4: Partial<Axis4Controls>;
   axis5: Partial<Axis5Controls>;
   axis6: Partial<Axis6Controls>;
+  attachment?: Partial<AttachmentControls>;
 };
 
 type ControlValueState = {
@@ -159,6 +164,9 @@ export const useHandleStore = defineStore("Handle", () => {
     axis6: {
       xRotatingDeg: 0,
     },
+  });
+  const attachmentState = reactive<AttachmentControls>({
+    doorAttached: false,
   });
 
   let initialControlBaseline: ControlValueState | null = null;
@@ -942,6 +950,10 @@ export const useHandleStore = defineStore("Handle", () => {
       initialControlBaseline = createControlValueSnapshot();
     }
 
+    if (typeof payload.attachment?.doorAttached === "boolean") {
+      attachmentState.doorAttached = payload.attachment.doorAttached;
+    }
+
     applyOffsetFromZero(
       controlValues.positioningPin,
       initialControlBaseline.positioningPin,
@@ -1042,6 +1054,7 @@ export const useHandleStore = defineStore("Handle", () => {
 
   return {
     controlValues,
+    attachmentState,
     CONTROL_DIRECTION_MAP,
     bindControlTargets,
     updatePositioningPinControls,

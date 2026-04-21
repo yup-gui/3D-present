@@ -3,6 +3,7 @@ import { computed, onBeforeUnmount, shallowRef, watch } from "vue";
 import { TresCanvas } from "@tresjs/core";
 import { useGraph, useLoader } from "@tresjs/core";
 import { OrbitControls } from "@tresjs/cientos";
+import * as THREE from "three";
 import type { GLTF } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { DRACOLoader } from "three/examples/jsm/loaders/DRACOLoader.js";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
@@ -97,6 +98,32 @@ const twinRunning = shallowRef(false);
 const twinConnected = shallowRef(false);
 const twinError = shallowRef("");
 const wsClient = shallowRef<WebSocket | null>(null);
+const sceneRoot = shallowRef<THREE.Object3D | null>(null);
+const axis6Node = shallowRef<THREE.Object3D | null>(null);
+const carANode = shallowRef<THREE.Object3D | null>(null);
+
+const reparentWithWorldTransform = (
+  child: THREE.Object3D,
+  nextParent: THREE.Object3D,
+) => {
+  child.updateWorldMatrix(true, false);
+  nextParent.updateWorldMatrix(true, false);
+  nextParent.attach(child);
+  child.updateMatrixWorld(true);
+};
+
+const syncDoorAttachment = (doorAttached: boolean) => {
+  if (!carANode.value || !axis6Node.value || !sceneRoot.value) {
+    return;
+  }
+
+  const targetParent = doorAttached ? axis6Node.value : sceneRoot.value;
+  if (carANode.value.parent === targetParent) {
+    return;
+  }
+
+  reparentWithWorldTransform(carANode.value, targetParent);
+};
 
 const twinWsUrl =
   import.meta.env.VITE_TWIN_WS_URL ?? "ws://127.0.0.1:8000/ws/twin";
@@ -182,8 +209,19 @@ watch(
 // **新增：模型加载完成时的回调，用于打印结构**
 const onModelLoad = (gltf: any) => {
   console.log("=== 模型加载完成 ===");
+  sceneRoot.value = gltf.scene.getObjectByName("scene") ?? gltf.scene;
+  axis6Node.value = gltf.scene.getObjectByName("axis6") ?? null;
+  carANode.value = gltf.scene.getObjectByName("car_A") ?? null;
   handleStore.bindControlTargets(gltf.scene);
+  syncDoorAttachment(handleStore.attachmentState.doorAttached);
 };
+
+watch(
+  () => handleStore.attachmentState.doorAttached,
+  (doorAttached) => {
+    syncDoorAttachment(doorAttached);
+  },
+);
 </script>
 
 <template>
@@ -267,6 +305,9 @@ const onModelLoad = (gltf: any) => {
         </span>
       </div>
       <p v-if="twinError" class="twin-error">{{ twinError }}</p>
+      <p class="twin-error">
+        车门附着状态: {{ handleStore.attachmentState.doorAttached ? "已附着" : "未附着" }}
+      </p>
 
       <div class="control-group">
         <h4 class="group-title">定位销</h4>
