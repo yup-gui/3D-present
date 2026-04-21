@@ -54,6 +54,7 @@ const connectTwin = () => {
   ws.onopen = () => {
     twinConnected.value = true;
     twinError.value = "";
+    handleStore.resetTwinIncrementBaseline();
     sendTwinCommand("start_twin");
   };
 
@@ -65,6 +66,9 @@ const connectTwin = () => {
       }
       if (payload.type === "status") {
         twinRunning.value = Boolean(payload.running);
+        if (!twinRunning.value) {
+          handleStore.resetTwinIncrementBaseline();
+        }
       }
       if (payload.type === "error") {
         twinError.value = String(payload.message ?? "孪生通道错误");
@@ -81,6 +85,7 @@ const connectTwin = () => {
   ws.onclose = () => {
     twinConnected.value = false;
     twinRunning.value = false;
+    handleStore.resetTwinIncrementBaseline();
     wsClient.value = null;
   };
 };
@@ -139,24 +144,6 @@ const onModelLoad = (gltf: any) => {
   // 1. 初始化 Pinia Store
   handleStore.initFromScene(gltf.scene);
   handleStore.bindControlTargets(gltf.scene);
-
-  //测试用
-  const temp = gltf.scene.getObjectByName("leftPin") ?? null;
-  if (temp) {
-    console.log("找到 leftPin 对象:", temp);
-  } else {
-    console.warn("未找到 leftPin 对象，请检查模型结构");
-  }
-  temp.position.x += 100; // 测试性地移动一下，验证绑定是否生效
-
-  const temp2 =
-    gltf.scene.getObjectByName("rightPositioningPinYMovingGroup") ?? null;
-  if (temp2) {
-    console.log("找到 rightPositioningPinYMovingGroup 对象:", temp2);
-  } else {
-    console.warn("未找到 rightPositioningPinYMovingGroup 对象，请检查模型结构");
-  }
-  temp2.position.z += 0.21; // 测试性地移动一下，验证绑定是否生效
 };
 </script>
 
@@ -305,7 +292,7 @@ const onModelLoad = (gltf: any) => {
           <input
             type="number"
             step="1"
-            v-model.number="handleStore.controlValues.gripper4.xMove"
+            v-model.number="handleStore.controlValues.gripper3.yMove"
           />
         </div>
 
@@ -314,7 +301,7 @@ const onModelLoad = (gltf: any) => {
           <input
             type="number"
             step="1"
-            v-model.number="handleStore.controlValues.gripper4.zMove"
+            v-model.number="handleStore.controlValues.gripper3.zMove"
           />
         </div>
 
@@ -323,7 +310,7 @@ const onModelLoad = (gltf: any) => {
           <input
             type="number"
             step="1"
-            v-model.number="handleStore.controlValues.gripper4.catchRotateYDeg"
+            v-model.number="handleStore.controlValues.gripper3.catchRotateXDeg"
           />
         </div>
       </div>

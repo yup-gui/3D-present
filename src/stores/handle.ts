@@ -37,12 +37,24 @@ type TwinControlSnapshot = {
   gripper4: Partial<Gripper4Controls>;
 };
 
+type ControlValueState = {
+  positioningPin: PositioningPinControls;
+  leftPositioningPin: LeftPositioningPinControls;
+  gripper: GripperControls;
+  gripper2: GripperControls;
+  gripper3: GripperControls;
+  gripper4: Gripper4Controls;
+};
+
 export const useHandleStore = defineStore("Handle", () => {
   const MM_TO_M = 0.001;
   const M_TO_MM = 1000;
+  const DISPLAY_PRECISION = 2;
 
   const mmToM = (valueMm: number) => valueMm * MM_TO_M;
   const mToMm = (valueM: number) => valueM * M_TO_MM;
+  const roundToPrecision = (value: number) =>
+    Number(value.toFixed(DISPLAY_PRECISION));
 
   // 核心数据源：存储所有零件的位置信息
   // 结构: { "零件名": { position: { x: 0, y: 0, z: 0 } } }
@@ -91,6 +103,71 @@ export const useHandleStore = defineStore("Handle", () => {
       catchRotateYDeg: 0,
     },
   });
+
+  let initialControlBaseline: ControlValueState | null = null;
+  const REVERSED_GRIPPER_ROTATE_KEYS = new Set(["catchRotateXDeg"]);
+  const REVERSED_GRIPPER4_ROTATE_KEYS = new Set(["catchRotateYDeg"]);
+
+  const isFiniteNumber = (value: unknown): value is number =>
+    typeof value === "number" && Number.isFinite(value);
+
+  const createControlValueSnapshot = (): ControlValueState => ({
+    positioningPin: { ...controlValues.positioningPin },
+    leftPositioningPin: { ...controlValues.leftPositioningPin },
+    gripper: { ...controlValues.gripper },
+    gripper2: { ...controlValues.gripper2 },
+    gripper3: { ...controlValues.gripper3 },
+    gripper4: { ...controlValues.gripper4 },
+  });
+
+  const normalizeNumericRecord = <T extends Record<string, number>>(
+    record: T,
+  ) => {
+    const targetRecord = record as Record<string, number>;
+    for (const keyName of Object.keys(targetRecord)) {
+      const value = targetRecord[keyName];
+      if (!isFiniteNumber(value)) {
+        continue;
+      }
+      targetRecord[keyName] = roundToPrecision(value);
+    }
+  };
+
+  const normalizeControlValuePrecision = () => {
+    normalizeNumericRecord(controlValues.positioningPin);
+    normalizeNumericRecord(controlValues.leftPositioningPin);
+    normalizeNumericRecord(controlValues.gripper);
+    normalizeNumericRecord(controlValues.gripper2);
+    normalizeNumericRecord(controlValues.gripper3);
+    normalizeNumericRecord(controlValues.gripper4);
+  };
+
+  const applyOffsetFromZero = <T extends Record<string, number>>(
+    target: T,
+    baseline: T,
+    incoming?: Partial<T>,
+    reversedKeys: ReadonlySet<string> = new Set(),
+  ) => {
+    if (!incoming) {
+      return;
+    }
+
+    const targetRecord = target as Record<string, number>;
+    const baselineRecord = baseline as Record<string, number>;
+    const incomingRecord = incoming as Record<string, number>;
+
+    for (const keyName of Object.keys(incomingRecord)) {
+      const backendOffset = incomingRecord[keyName];
+      if (!isFiniteNumber(backendOffset)) {
+        continue;
+      }
+
+      const baselineValue = baselineRecord[keyName] ?? 0;
+      targetRecord[keyName] = reversedKeys.has(keyName)
+        ? baselineValue - backendOffset
+        : baselineValue + backendOffset;
+    }
+  };
 
   const controlTargets = {
     rightPositioningPinYRotatingGroup: shallowRef<THREE.Object3D | null>(null),
@@ -384,6 +461,8 @@ export const useHandleStore = defineStore("Handle", () => {
         controlTargets.handle4CratchUpZ.value.rotation.y,
       );
     }
+
+    normalizeControlValuePrecision();
   };
 
   const bindControlTargets = (scene: THREE.Object3D) => {
@@ -433,6 +512,7 @@ export const useHandleStore = defineStore("Handle", () => {
     });
 
     syncControlValuesFromScene();
+    initialControlBaseline = createControlValueSnapshot();
     applyControlValues();
   };
 
@@ -440,11 +520,13 @@ export const useHandleStore = defineStore("Handle", () => {
     payload: Partial<PositioningPinControls>,
   ) => {
     Object.assign(controlValues.positioningPin, payload);
+    normalizeControlValuePrecision();
     applyControlValues();
   };
 
   const updateGripperControls = (payload: Partial<GripperControls>) => {
     Object.assign(controlValues.gripper, payload);
+    normalizeControlValuePrecision();
     applyControlValues();
   };
 
@@ -452,47 +534,89 @@ export const useHandleStore = defineStore("Handle", () => {
     payload: Partial<LeftPositioningPinControls>,
   ) => {
     Object.assign(controlValues.leftPositioningPin, payload);
+    normalizeControlValuePrecision();
     applyControlValues();
   };
 
   const updateGripper2Controls = (payload: Partial<GripperControls>) => {
     Object.assign(controlValues.gripper2, payload);
+    normalizeControlValuePrecision();
     applyControlValues();
   };
 
   const updateGripper3Controls = (payload: Partial<GripperControls>) => {
     Object.assign(controlValues.gripper3, payload);
+    normalizeControlValuePrecision();
     applyControlValues();
   };
 
   const updateGripper4Controls = (payload: Partial<Gripper4Controls>) => {
     Object.assign(controlValues.gripper4, payload);
+    normalizeControlValuePrecision();
     applyControlValues();
   };
 
   const applyTwinSnapshot = (payload: Partial<TwinControlSnapshot>) => {
-    if (payload.positioningPin) {
-      Object.assign(controlValues.positioningPin, payload.positioningPin);
-    }
-    if (payload.leftPositioningPin) {
-      Object.assign(
-        controlValues.leftPositioningPin,
-        payload.leftPositioningPin,
-      );
-    }
-    if (payload.gripper) {
-      Object.assign(controlValues.gripper, payload.gripper);
-    }
-    if (payload.gripper2) {
-      Object.assign(controlValues.gripper2, payload.gripper2);
-    }
-    if (payload.gripper3) {
-      Object.assign(controlValues.gripper3, payload.gripper3);
-    }
-    if (payload.gripper4) {
-      Object.assign(controlValues.gripper4, payload.gripper4);
+    if (!initialControlBaseline) {
+      initialControlBaseline = createControlValueSnapshot();
     }
 
+    applyOffsetFromZero(
+      controlValues.positioningPin,
+      initialControlBaseline.positioningPin,
+      payload.positioningPin,
+    );
+    applyOffsetFromZero(
+      controlValues.leftPositioningPin,
+      initialControlBaseline.leftPositioningPin,
+      payload.leftPositioningPin,
+    );
+    applyOffsetFromZero(
+      controlValues.gripper,
+      initialControlBaseline.gripper,
+      payload.gripper,
+      REVERSED_GRIPPER_ROTATE_KEYS,
+    );
+    applyOffsetFromZero(
+      controlValues.gripper2,
+      initialControlBaseline.gripper2,
+      payload.gripper2,
+      REVERSED_GRIPPER_ROTATE_KEYS,
+    );
+    applyOffsetFromZero(
+      controlValues.gripper3,
+      initialControlBaseline.gripper3,
+      payload.gripper3,
+    );
+    applyOffsetFromZero(
+      controlValues.gripper4,
+      initialControlBaseline.gripper4,
+      payload.gripper4,
+      REVERSED_GRIPPER4_ROTATE_KEYS,
+    );
+
+    normalizeControlValuePrecision();
+    applyControlValues();
+  };
+
+  const resetTwinIncrementBaseline = () => {
+    if (!initialControlBaseline) {
+      initialControlBaseline = createControlValueSnapshot();
+    }
+
+    Object.assign(
+      controlValues.positioningPin,
+      initialControlBaseline.positioningPin,
+    );
+    Object.assign(
+      controlValues.leftPositioningPin,
+      initialControlBaseline.leftPositioningPin,
+    );
+    Object.assign(controlValues.gripper, initialControlBaseline.gripper);
+    Object.assign(controlValues.gripper2, initialControlBaseline.gripper2);
+    Object.assign(controlValues.gripper3, initialControlBaseline.gripper3);
+    Object.assign(controlValues.gripper4, initialControlBaseline.gripper4);
+    normalizeControlValuePrecision();
     applyControlValues();
   };
 
@@ -511,6 +635,7 @@ export const useHandleStore = defineStore("Handle", () => {
     updateGripper3Controls,
     updateGripper4Controls,
     applyTwinSnapshot,
+    resetTwinIncrementBaseline,
     applyControlValues,
   };
 });
